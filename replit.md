@@ -74,4 +74,11 @@ The frontend proxies Socket.io requests to the backend server.
 - Added server-side validation for team size divisibility before starting chain phase
 - Updated Squad.js to enforce exact team sizes (no overflow)
 - Integrated YouTube tutorial briefing modal
-- Optimized Socket.io for 100+ concurrent connections
+- Optimized Socket.io for 100+ concurrent players
+- **Fixed team isolation**: Each team now operates independently
+  - Squad advance only affects the player's own squad
+  - Tumbler and fragment assignments are per-squad, not global
+  - START HEIST button requires ALL team members to confirm scans
+  - WaitingView shows scanned target's prompt and image
+  - Real-time progress tracking (X/Y teammates ready)
+  - Global state properly cleared on game reset
