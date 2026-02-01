@@ -155,6 +155,58 @@ io.on('connection', (socket) => {
         callback(result);
     });
 
+    // Verify QR code scan - validates scanned code matches target
+    socket.on('verify_scan', (data, callback) => {
+        const result = gameManager.verifyScan(socket.id, data.scannedCode);
+
+        if (result.success) {
+            // Also record the scan completion 
+            const target = gameManager.getTargetInfo(socket.id);
+            if (target) {
+                const scanResult = gameManager.handleScan(socket.id, target.id);
+
+                if (scanResult.success) {
+                    const squad = gameManager.squads.get(scanResult.squadId);
+
+                    if (squad) {
+                        const confirmedCount = squad.getCompletedScans();
+                        const totalCount = squad.players.length;
+                        const allConfirmed = confirmedCount === totalCount;
+
+                        squad.players.forEach(p => {
+                            io.to(p.id).emit('scan_complete', {
+                                scannerId: socket.id,
+                                confirmedCount,
+                                totalCount,
+                                allConfirmed
+                            });
+                        });
+
+                        if (scanResult.loopComplete) {
+                            squad.players.forEach(p => {
+                                io.to(p.id).emit('squad_activated');
+                            });
+                            io.to('gm').emit('squad_loop_complete', { squadId: scanResult.squadId });
+                        }
+                    }
+
+                    io.to('gm').emit('scan_recorded', {
+                        squadId: scanResult.squadId,
+                        scannerId: socket.id,
+                    });
+                }
+            }
+        }
+
+        callback(result);
+    });
+
+    // Get player's own scan code (for displaying their QR)
+    socket.on('get_my_scan_code', (callback) => {
+        const scanCode = gameManager.getPlayerScanCode(socket.id);
+        callback({ scanCode });
+    });
+
     // Minigame state updates
     socket.on('minigame_state', (data) => {
         gameManager.updateMinigameState(socket.id, data);

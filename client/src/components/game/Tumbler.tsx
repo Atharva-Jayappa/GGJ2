@@ -40,6 +40,7 @@ export function Tumbler({
         totalPlayers: 0
     });
     const [completed, setCompleted] = useState(false);
+    const completedRef = useRef(false);
     const [permissionGranted, setPermissionGranted] = useState(false);
     const [permissionError, setPermissionError] = useState<string | null>(null);
     const [isPermanentlyDenied, setIsPermanentlyDenied] = useState(false);
@@ -156,6 +157,17 @@ export function Tumbler({
         setIsAtSweetSpot(atSweetSpot);
     }, [checkSweetSpot, sweetSpotAngle, completed]);
 
+    // Check if we need to request permission (iOS 13+)
+    useEffect(() => {
+        const requiresPermission = typeof (DeviceOrientationEvent as any).requestPermission === 'function';
+        setNeedsPermission(requiresPermission);
+
+        // On non-iOS devices, permission is automatic
+        if (!requiresPermission) {
+            setPermissionGranted(true);
+        }
+    }, []);
+
     // Request permission for iOS
     const requestPermission = async () => {
         setPermissionError(null); // Clear any previous errors
@@ -200,9 +212,9 @@ export function Tumbler({
     useEffect(() => {
         window.addEventListener('deviceorientation', handleOrientation);
 
-        // Send state to server periodically
+        // Send state to server periodically (use ref to avoid stale closure)
         const sendInterval = setInterval(() => {
-            if (socket && !completed) {
+            if (socket && !completedRef.current) {
                 socket.emit('tumbler_state', {
                     atSweetSpot: isAtSweetSpotRef.current
                 });
@@ -225,6 +237,7 @@ export function Tumbler({
         const handleComplete = (data: { view: string }) => {
             if (data.view === 'getaway') {
                 setCompleted(true);
+                completedRef.current = true; // Update ref for interval
                 triggerSuccess();
                 if (navigator.vibrate) {
                     navigator.vibrate([50, 50, 100, 50, 150]);

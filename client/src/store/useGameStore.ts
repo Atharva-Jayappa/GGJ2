@@ -18,6 +18,7 @@ export interface TargetData {
     drawing: string;
     tell: string;
     prompt: string;
+    scanCode?: string; // Target's scan code for QR verification
 }
 
 export interface SquadData {
@@ -87,6 +88,9 @@ export interface GameState {
     showSuccess: boolean;
     showError: boolean;
 
+    // QR Scan Code
+    myScanCode: string | null;
+
     // Actions
     connect: () => void;
     disconnect: () => void;
@@ -112,6 +116,10 @@ export interface GameState {
     // Squad
     squadAdvance: (view: GameView) => void;
     getSquadStatus: () => Promise<SquadStatus>;
+
+    // QR Code Verification
+    getMyScanCode: () => Promise<void>;
+    verifyScan: (scannedCode: string) => Promise<{ success: boolean; message: string }>;
 
     // UI
     triggerSuccess: () => void;
@@ -147,6 +155,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     scanComplete: false,
     showSuccess: false,
     showError: false,
+    myScanCode: null,
 
     // Connection
     connect: () => {
@@ -200,7 +209,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             // Update squad status directly from the authoritative server broadcast
             set({ squadStatus: { confirmedCount: data.confirmedCount, totalCount: data.totalCount, allConfirmed: data.allConfirmed } });
         });
-        
+
         // Squad advance denied - not all confirmed yet
         socket.on('squad_advance_denied', (data: { message: string; confirmedCount: number; totalCount: number }) => {
             console.log('[SOCKET] Squad advance denied:', data.message);
@@ -218,7 +227,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         // Heist complete with result data
         socket.on('heist_complete', (data: { position: number; totalSquads: number; isWinner: boolean; tasksCompleted: number }) => {
-            set({ 
+            set({
                 currentView: 'complete',
                 heistResult: data
             });
@@ -412,6 +421,38 @@ export const useGameStore = create<GameState>((set, get) => ({
             socket.emit('get_squad_status', (response: { confirmedCount: number; totalCount: number; allConfirmed: boolean }) => {
                 console.log('[SOCKET] get_squad_status response:', response);
                 set({ squadStatus: response });
+                resolve(response);
+            });
+        });
+    },
+
+    // Get player's own scan code for displaying QR
+    getMyScanCode: async () => {
+        const { socket } = get();
+        if (!socket) return;
+
+        return new Promise<void>((resolve) => {
+            socket.emit('get_my_scan_code', (response: { scanCode: string | null }) => {
+                console.log('[SOCKET] get_my_scan_code response:', response);
+                set({ myScanCode: response.scanCode });
+                resolve();
+            });
+        });
+    },
+
+    // Verify a scanned QR code
+    verifyScan: async (scannedCode: string) => {
+        const { socket } = get();
+        if (!socket) return { success: false, message: 'Not connected' };
+
+        return new Promise((resolve) => {
+            socket.emit('verify_scan', { scannedCode }, (response: { success: boolean; message: string }) => {
+                console.log('[SOCKET] verify_scan response:', response);
+                if (response.success) {
+                    get().triggerSuccess();
+                } else {
+                    get().triggerError();
+                }
                 resolve(response);
             });
         });

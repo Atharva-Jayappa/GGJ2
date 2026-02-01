@@ -100,12 +100,12 @@ Setup Client:
 cd ../client
 npm install
 npm run dev
-# Client starts on http://localhost:5173
+# Client starts on http://localhost:5001
 ```
 
 ### How to Test Locally
-* Open http://localhost:5173/central-command in one browser tab (Game Master View).
-* Open http://localhost:5173 in a new window (incognito recommended) to simulate Player 1.
+* Open http://localhost:5001/central-command in one browser tab (Game Master View).
+* Open http://localhost:5001 in a new window (incognito recommended) to simulate Player 1.
 * Open more incognito windows to simulate Player 2, 3, 4.
 * On the GM View, click **"Start Chain"** once enough players have joined.
 

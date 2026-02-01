@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../../store/useGameStore';
 
 export function SignalJammer() {
-    const setView = useGameStore((s) => s.setView);
+    const socket = useGameStore((s) => s.socket);
+    const squadAdvance = useGameStore((s) => s.squadAdvance);
     const triggerSuccess = useGameStore((s) => s.triggerSuccess);
     const triggerError = useGameStore((s) => s.triggerError);
     const showSuccess = useGameStore((s) => s.showSuccess);
@@ -75,7 +76,7 @@ export function SignalJammer() {
     }, [failedToLoad, setView]);
 
     const handleSymbolClick = useCallback(async (index: number) => {
-        if (wrongGuesses.has(index) || isSubmitting || solved) return;
+        if (wrongGuesses.has(index) || isSubmitting || solved || !socket) return;
 
         setSelectedIndex(index);
         setIsSubmitting(true);
@@ -87,25 +88,20 @@ export function SignalJammer() {
             triggerSuccess();
             setSolved(true);
 
-            // Haptic feedback for success
-            if (navigator.vibrate) {
-                navigator.vibrate([50, 50, 100, 50, 150]);
-            }
+                // Advance the entire squad to next minigame
+                setTimeout(() => {
+                    squadAdvance('tumbler');
+                }, 1500);
+            } else {
+                // Wrong guess
+                setWrongGuesses((prev) => new Set([...prev, index]));
+                triggerError();
 
-            // Advance to next minigame after delay
-            setTimeout(() => {
-                setView('tumbler');
-            }, 1500);
-        } else {
-            // Wrong guess
-            setWrongGuesses((prev) => new Set([...prev, index]));
-            triggerError();
-
-            // Haptic feedback for error
-            if (navigator.vibrate) {
-                navigator.vibrate([100, 50, 100]);
+                // Haptic feedback for error
+                if (navigator.vibrate) {
+                    navigator.vibrate([100, 50, 100]);
+                }
             }
-        }
 
         setIsSubmitting(false);
         setSelectedIndex(null);

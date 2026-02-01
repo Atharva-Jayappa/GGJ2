@@ -56,9 +56,8 @@ const SOCKET_URL = import.meta.env.PROD
     ? `${window.location.origin}/gm`
     : 'http://localhost:3001/gm';
 
-const JOIN_URL = import.meta.env.PROD
-    ? window.location.origin
-    : 'http://localhost:5173';
+// Always use current origin for QR code (works for localhost, ngrok, etc.)
+const JOIN_URL = window.location.origin;
 
 export function GameMasterView() {
     const [socket, setSocket] = useState<Socket | null>(null);
