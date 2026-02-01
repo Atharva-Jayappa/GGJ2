@@ -154,6 +154,7 @@ class GameManager {
         if (!target) return null;
 
         return {
+            id: target.id,
             drawing: target.drawing,
             tell: target.tell,
             prompt: target.prompt,

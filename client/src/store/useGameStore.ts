@@ -14,6 +14,7 @@ export interface PlayerData {
 }
 
 export interface TargetData {
+    id: string;
     drawing: string;
     tell: string;
     prompt: string;
@@ -169,6 +170,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         // Scan complete notification - update squad status directly from server
         socket.on('scan_complete', (data: { scannerId: string; confirmedCount: number; totalCount: number; allConfirmed: boolean }) => {
+            console.log('[SOCKET] scan_complete received:', data);
             // Update squad status directly from the authoritative server broadcast
             set({ squadStatus: { confirmedCount: data.confirmedCount, totalCount: data.totalCount, allConfirmed: data.allConfirmed } });
         });
@@ -202,7 +204,9 @@ export const useGameStore = create<GameState>((set, get) => ({
                 player: null,
                 target: null,
                 squad: null,
+                squadStatus: null,
                 clue: null,
+                codeFragments: [],
                 scanComplete: false,
             });
         });
@@ -364,6 +368,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         return new Promise((resolve) => {
             socket.emit('get_squad_status', (response: { confirmedCount: number; totalCount: number; allConfirmed: boolean }) => {
+                console.log('[SOCKET] get_squad_status response:', response);
                 set({ squadStatus: response });
                 resolve(response);
             });

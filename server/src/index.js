@@ -90,12 +90,14 @@ io.on('connection', (socket) => {
     socket.on('get_squad_status', (callback) => {
         const player = gameManager.players.get(socket.id);
         if (!player || !player.squad) {
+            console.log(`[GET_SQUAD_STATUS] No player or squad for ${socket.id}, player exists: ${!!player}, squad: ${player?.squad}`);
             callback({ confirmedCount: 0, totalCount: 0, allConfirmed: false });
             return;
         }
 
         const squad = gameManager.squads.get(player.squad);
         if (!squad) {
+            console.log(`[GET_SQUAD_STATUS] Squad ${player.squad} not found in squads map`);
             callback({ confirmedCount: 0, totalCount: 0, allConfirmed: false });
             return;
         }
@@ -103,6 +105,7 @@ io.on('connection', (socket) => {
         const confirmedCount = squad.getCompletedScans();
         const totalCount = squad.players.length;
         const allConfirmed = confirmedCount === totalCount;
+        console.log(`[GET_SQUAD_STATUS] Squad ${player.squad}: ${confirmedCount}/${totalCount} confirmed`);
 
         callback({ confirmedCount, totalCount, allConfirmed });
     });

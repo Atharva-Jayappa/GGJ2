@@ -4,16 +4,19 @@ import { useGameStore } from '../../store/useGameStore';
 
 export function ScannerView() {
     const target = useGameStore((s) => s.target);
-    const triggerSuccess = useGameStore((s) => s.triggerSuccess);
+    const performScan = useGameStore((s) => s.performScan);
     const setView = useGameStore((s) => s.setView);
     const showSuccess = useGameStore((s) => s.showSuccess);
     const showError = useGameStore((s) => s.showError);
 
     const [holdProgress, setHoldProgress] = useState(0);
+    const [isProcessing, setIsProcessing] = useState(false);
     const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const startHold = useCallback(() => {
+        if (isProcessing) return;
+        
         // Reset progress
         setHoldProgress(0);
 
@@ -28,27 +31,39 @@ export function ScannerView() {
         }, 16);
 
         // Set timer for completion
-        holdTimerRef.current = setTimeout(() => {
+        holdTimerRef.current = setTimeout(async () => {
             if (progressIntervalRef.current) {
                 clearInterval(progressIntervalRef.current);
             }
             setHoldProgress(100);
+            setIsProcessing(true);
 
-            // DEV: Skip server validation, directly advance to next view
-            // Trigger success effect and move to waiting/heist phase
-            triggerSuccess();
+            // Send scan to server to record confirmation
+            // For hackathon simplicity, we trust the player found their target
+            // In a real game, you'd verify with QR codes or proximity
+            if (target?.id) {
+                // Send the target's ID to the server to record this scan
+                const result = await performScan(target.id);
+                
+                // Haptic feedback
+                if (navigator.vibrate) {
+                    navigator.vibrate([50, 50, 100]);
+                }
 
-            // Haptic feedback
-            if (navigator.vibrate) {
-                navigator.vibrate([50, 50, 100]);
+                if (result.success) {
+                    // Move to waiting view after a brief delay
+                    setTimeout(() => {
+                        setView('waiting');
+                        setIsProcessing(false);
+                    }, 500);
+                } else {
+                    // Reset on failure
+                    setHoldProgress(0);
+                    setIsProcessing(false);
+                }
             }
-
-            // Move to waiting view after a brief delay
-            setTimeout(() => {
-                setView('waiting');
-            }, 500);
         }, holdDuration);
-    }, [triggerSuccess, setView]);
+    }, [target, performScan, setView, isProcessing]);
 
     const cancelHold = useCallback(() => {
         if (holdTimerRef.current) {
