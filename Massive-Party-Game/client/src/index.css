@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-display: 'Rajdhani', sans-serif;
+
+  /* Spy Theme Colors - Dark, Neon Green, Warning Red */
+  --background: 0 0% 5%;
+  --foreground: 130 100% 50%; /* Neon Green */
+  
+  --primary: 130 100% 50%;
+  --primary-foreground: 0 0% 0%;
+  
+  --secondary: 0 0% 12%;
+  --secondary-foreground: 130 100% 90%;
+  
+  --muted: 0 0% 15%;
+  --muted-foreground: 130 30% 60%;
+  
+  --accent: 0 0% 20%;
+  --accent-foreground: 130 100% 60%;
+  
+  --destructive: 0 100% 50%;
+  --destructive-foreground: 0 0% 100%;
+  
+  --border: 130 50% 20%;
+  --input: 130 30% 10%;
+  --ring: 130 100% 50%;
+
+  --radius: 0px; /* Brutalist/Tech look */
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground antialiased overflow-x-hidden;
+    font-family: var(--font-display);
+    background-image: 
+      linear-gradient(rgba(0, 255, 0, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 255, 0, 0.03) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-mono);
+    @apply uppercase tracking-widest;
+  }
+
+  /* Scanline effect */
+  body::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(
+      rgba(18, 16, 16, 0) 50%,
+      rgba(0, 0, 0, 0.1) 50%
+    );
+    background-size: 100% 4px;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.3;
+  }
+}
+
+@layer components {
+  .neon-border {
+    @apply border border-primary/50 shadow-[0_0_10px_rgba(0,255,0,0.2)];
+  }
+  
+  .neon-text {
+    @apply text-primary drop-shadow-[0_0_5px_rgba(0,255,0,0.5)];
+  }
+
+  .glitch-hover:hover {
+    animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+  }
+  
+  .btn-cyber {
+    @apply relative px-8 py-4 bg-transparent border-2 border-primary text-primary font-mono text-xl uppercase tracking-widest overflow-hidden transition-all duration-200 hover:bg-primary hover:text-black hover:shadow-[0_0_20px_rgba(0,255,0,0.6)];
+  }
+}
+
+@keyframes glitch {
+  0% { transform: translate(0) }
+  20% { transform: translate(-2px, 2px) }
+  40% { transform: translate(-2px, -2px) }
+  60% { transform: translate(2px, 2px) }
+  80% { transform: translate(2px, -2px) }
+  100% { transform: translate(0) }
+}

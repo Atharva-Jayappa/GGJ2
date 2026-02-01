@@ -1,0 +1,22 @@
+You're an expert game designer and developer with experience coding multiplayer games on the web
+
+I'm looking to make a multiplayer game me starts for a hackathon demo that is meant to be played with 100 people, it's supposed to be a client/server party game(like jackbox). It shall be two separate pieces that interact [CLIENT] and [SERVER]
+
+Definition of [SERVER]
+When the server is run. It will show [START PAGE] that will show [logo] and two buttons([START] and [TUTORIAL]). It will play an opening theme from an mp3 named (opening_theme.mp3). The first button will open the [TUTORIAL PAGE]. The [TUTORIAL] page will show this youtube video() and have a back button to return to the start page. When the [START] is clicked on the server it will open the [BEGIN PHASE 1 PAGE]. On the [BEGIN PHASE 1 PAGE] the server will have a [BEGIN HEIST] button. It will display a list of all players who’s responses are received. It will also have a text field [TEAM SIZE ENTRY] which will hold the value of {TEAM SIZE}. If the {TEAM SIZE}isn’t divisible by {PLAYER COUNT} a warning will be displayed. The SERVER will receive {IDENTIFYING INFORMATION} and {codename} and add to them to a {LIST OF TEAMS}. 
+
+When the [BEGIN HEIST] Button is clicked. Depending on the value of {TEAM SIZE}, an {LIST OF TEAMS} will be created each team will be assigned a {TEAM ID} , {RANDOM PASSWORD} along with a randomly generated password of character the length determined by {TEAM SIZE}. 
+
+The SERVER will wait for clients to make a connection with a {TEAM ID} and  {ATTEMPT}. It will combine the {ATTEMPT} with the {RANDOM PASSWORD}. If the {ATTEMPT} and {RANDOM PASSWORD} match for the {TEAM ID}. It will stop waiting for connections and will print a “HEIST COMPLETE” Message with the {codename}s of all the players with the winning {TEAM ID} 
+
+
+Definition of [CLIENT]
+The link will open a client project hosted on replit. Starting the project will open the [ENTER PAGE]. The [ENTER PAGE] will consist of a [CODE NAME ENTRY] text field which will produce type string {codename}, a text [PROMPT] and a [IDENTIFYING INFORMATION FIELD] which will either be a [IDENTIFYING INFORMATION FIELD_TEXT] or [IDENTIFYING INFORMATION FIELD_CANVAS] which will submit {IDENTIFYING INFORMATION} and the [SUBMIT BUTTON] When the [SUBMIT BUTTON] is clicked the client will send {codename} and {IDENTIFYING INFORMATION} to the server. 
+
+Clients will wait until the [BEGIN HEIST] button is clicked and receive their {TEAM_ID}, a {PIECE OF THE PASSWORD}, {ORDER OF PASSWORD} which will let them know what character they have of the {RANDOM PASSWORD}. The players will receive the identifying information of the player with the matching {TEAM ID} and {ORDER OF PASSWORD} parameter is +1.The final player of the team will receive the identifying information of the first player in the sequence. 
+
+ EX: my{TEAM ID} = 34 and my {ORDER OF PASSWORD} is = 1.  I will receive the {IDENTIFYING INFORMATION} for the player from the {LIST OF TEAMS} where the {TEAM ID} = 34 and their {ORDER OF PASSWORD} = 2. 
+
+These players will work amongst themselves to build the final {RANDOM PASSWORD}. 
+
+Players whose {ORDER OF PASSWORD} = {TEAM SIZE} i.e the final player will have an additional [FINAL PASSWORD ENTRY FIELD] containing {ATTEMPT} and a [FINAL PASSWORD ENTRY FIELD SUBMIT BUTTON]. When [FINAL PASSWORD ENTRY FIELD SUBMIT BUTTON] the value of  [FINAL PASSWORD ENTRY FIELD] will be sent as  {ATTEMPT} along with the players {TEAM_ID}

@@ -5,13 +5,14 @@ import QRCode from 'react-qr-code';
 import { DrawingGrid } from './DrawingGrid';
 import { SquadProgress } from './SquadProgress';
 
-type Phase = 'lobby' | 'chain' | 'heist' | 'getaway';
+type Phase = 'start' | 'tutorial' | 'lobby' | 'chain' | 'heist' | 'getaway' | 'complete';
 
 interface GameState {
     phase: Phase;
     playerCount: number;
     maxPlayers: number;
     squadCount: number;
+    teamSize: number;
     drawings: Array<{
         id: string;
         drawing: string;
@@ -46,10 +47,11 @@ const JOIN_URL = import.meta.env.PROD
 export function GameMasterView() {
     const [socket, setSocket] = useState<Socket | null>(null);
     const [gameState, setGameState] = useState<GameState>({
-        phase: 'lobby',
+        phase: 'start',
         playerCount: 0,
-        maxPlayers: 50,
+        maxPlayers: 100,
         squadCount: 0,
+        teamSize: 4,
         drawings: [],
         squads: [],
     });
@@ -107,6 +109,11 @@ export function GameMasterView() {
         };
     }, []);
 
+    const setPhase = useCallback((phase: Phase) => {
+        socket?.emit('set_phase', { phase });
+        setGameState((prev) => ({ ...prev, phase }));
+    }, [socket]);
+
     const startGame = useCallback(() => {
         socket?.emit('start_game');
     }, [socket]);
@@ -117,7 +124,16 @@ export function GameMasterView() {
 
     const resetGame = useCallback(() => {
         socket?.emit('reset_game');
+        setGameState((prev) => ({ ...prev, phase: 'start', playerCount: 0, drawings: [], squads: [] }));
     }, [socket]);
+
+    const updateTeamSize = useCallback((delta: number) => {
+        const newSize = Math.max(2, Math.min(10, gameState.teamSize + delta));
+        socket?.emit('set_team_size', { size: newSize });
+    }, [socket, gameState.teamSize]);
+
+    const teamSize = gameState.teamSize;
+    const canStartChain = gameState.playerCount >= teamSize && gameState.playerCount % teamSize === 0;
 
     return (
         <div className="min-h-screen bg-slate-900 cyber-grid text-white overflow-hidden">
@@ -150,39 +166,29 @@ export function GameMasterView() {
                             </p>
                         </div>
 
-                        {/* Control buttons */}
-                        <div className="flex gap-2">
-                            {gameState.phase === 'lobby' && (
+                        {/* Control buttons - only show after start/tutorial */}
+                        {gameState.phase !== 'start' && gameState.phase !== 'tutorial' && (
+                            <div className="flex gap-2">
+                                {gameState.phase === 'chain' && (
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={startHeist}
+                                        className="px-4 py-2 bg-pink-500/20 border border-pink-400 text-pink-400 font-bold"
+                                    >
+                                        START HEIST
+                                    </motion.button>
+                                )}
                                 <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
-                                    onClick={startGame}
-                                    disabled={gameState.playerCount < 4}
-                                    className="px-4 py-2 bg-green-500/20 border border-green-400 text-green-400 
-                             font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                                    onClick={resetGame}
+                                    className="px-4 py-2 bg-red-500/20 border border-red-400 text-red-400 font-bold"
                                 >
-                                    START CHAIN
+                                    RESET
                                 </motion.button>
-                            )}
-                            {gameState.phase === 'chain' && (
-                                <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={startHeist}
-                                    className="px-4 py-2 bg-pink-500/20 border border-pink-400 text-pink-400 font-bold"
-                                >
-                                    START HEIST
-                                </motion.button>
-                            )}
-                            <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={resetGame}
-                                className="px-4 py-2 bg-red-500/20 border border-red-400 text-red-400 font-bold"
-                            >
-                                RESET
-                            </motion.button>
-                        </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </motion.header>
@@ -190,6 +196,102 @@ export function GameMasterView() {
             {/* Main Content */}
             <main className="pt-20 min-h-screen">
                 <AnimatePresence mode="wait">
+                    {/* START PHASE - Intro Screen */}
+                    {gameState.phase === 'start' && (
+                        <motion.div
+                            key="start"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 1.05 }}
+                            className="min-h-[calc(100vh-5rem)] flex flex-col items-center justify-center text-center"
+                        >
+                            <motion.div
+                                initial={{ y: -20 }}
+                                animate={{ y: 0 }}
+                                className="mb-12"
+                            >
+                                <h1 className="text-6xl md:text-8xl font-bold text-white tracking-widest mb-2 opacity-50">
+                                    PROTOCOL
+                                </h1>
+                                <h2 className="text-7xl md:text-9xl font-bold text-cyan-400 text-glow-cyan tracking-widest">
+                                    UNMASK
+                                </h2>
+                            </motion.div>
+
+                            <div className="flex gap-6">
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setPhase('lobby')}
+                                    className="px-8 py-4 bg-cyan-400/20 border-2 border-cyan-400 text-cyan-400 
+                                     font-bold text-xl tracking-wider flex items-center gap-3 hover:bg-cyan-400/30"
+                                >
+                                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" />
+                                    </svg>
+                                    INITIATE
+                                </motion.button>
+
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setPhase('tutorial')}
+                                    className="px-8 py-4 bg-white/10 border-2 border-white/30 text-white/70 
+                                     font-bold text-xl tracking-wider hover:border-white hover:text-white hover:bg-white/20"
+                                >
+                                    BRIEFING
+                                </motion.button>
+                            </div>
+
+                            <p className="mt-16 text-slate-500 font-mono text-sm tracking-widest">
+                                SECURE CONNECTION ESTABLISHED // V.2.0
+                            </p>
+                        </motion.div>
+                    )}
+
+                    {/* TUTORIAL PHASE */}
+                    {gameState.phase === 'tutorial' && (
+                        <motion.div
+                            key="tutorial"
+                            initial={{ x: 100, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            exit={{ x: -100, opacity: 0 }}
+                            className="min-h-[calc(100vh-5rem)] flex flex-col items-center justify-center p-8"
+                        >
+                            <div className="w-full max-w-4xl">
+                                <div className="aspect-video bg-black border-2 border-cyan-400/30 relative overflow-hidden mb-8">
+                                    <iframe
+                                        className="absolute inset-0 w-full h-full"
+                                        src="https://www.youtube.com/embed/djV11Xbc914?autoplay=1&mute=0&controls=1"
+                                        title="Mission Briefing"
+                                        frameBorder="0"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                        allowFullScreen
+                                    />
+                                    <div className="absolute inset-0 pointer-events-none opacity-20 scanlines" />
+                                </div>
+
+                                <div className="flex justify-between items-center">
+                                    <p className="text-slate-500 font-mono text-sm tracking-widest">
+                                        MISSION BRIEFING // TOP SECRET
+                                    </p>
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => setPhase('start')}
+                                        className="px-6 py-2 bg-cyan-400/20 border border-cyan-400 text-cyan-400 
+                                         font-bold tracking-wider flex items-center gap-2"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        RETURN TO MENU
+                                    </motion.button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+
                     {/* LOBBY PHASE */}
                     {gameState.phase === 'lobby' && (
                         <motion.div
@@ -243,6 +345,48 @@ export function GameMasterView() {
                                 <p className="text-slate-500 text-sm mt-1">
                                     {JOIN_URL}
                                 </p>
+
+                                {/* Team Size Selector */}
+                                <div className="mt-8 flex items-center gap-6 bg-slate-800/50 border border-cyan-400/30 p-4 rounded-lg">
+                                    <span className="text-slate-400 font-mono">TEAM SIZE:</span>
+                                    <div className="flex items-center gap-4">
+                                        <motion.button
+                                            whileHover={{ scale: 1.1 }}
+                                            whileTap={{ scale: 0.9 }}
+                                            onClick={() => updateTeamSize(-1)}
+                                            className="w-8 h-8 bg-slate-700 text-cyan-400 rounded hover:bg-slate-600"
+                                        >
+                                            -
+                                        </motion.button>
+                                        <span className="text-3xl font-bold font-mono text-white w-8 text-center">{teamSize}</span>
+                                        <motion.button
+                                            whileHover={{ scale: 1.1 }}
+                                            whileTap={{ scale: 0.9 }}
+                                            onClick={() => updateTeamSize(1)}
+                                            className="w-8 h-8 bg-slate-700 text-cyan-400 rounded hover:bg-slate-600"
+                                        >
+                                            +
+                                        </motion.button>
+                                    </div>
+                                </div>
+
+                                {/* Start Button with validation */}
+                                <motion.button
+                                    whileHover={{ scale: canStartChain ? 1.05 : 1 }}
+                                    whileTap={{ scale: canStartChain ? 0.95 : 1 }}
+                                    onClick={startGame}
+                                    disabled={!canStartChain}
+                                    className={`mt-6 w-full py-4 font-bold text-xl tracking-wider ${
+                                        canStartChain
+                                            ? 'bg-green-500/20 border-2 border-green-400 text-green-400 hover:bg-green-500/30'
+                                            : 'bg-slate-700/50 border-2 border-slate-600 text-slate-500 cursor-not-allowed'
+                                    }`}
+                                >
+                                    {canStartChain 
+                                        ? 'BEGIN OPERATION' 
+                                        : `NEED ${teamSize - (gameState.playerCount % teamSize)} MORE AGENTS`
+                                    }
+                                </motion.button>
                             </div>
 
                             {/* Right side - Drawing mosaic */}

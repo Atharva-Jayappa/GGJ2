@@ -313,30 +313,44 @@ gmNamespace.on('connection', (socket) => {
     socket.emit('game_state', gameManager.getGameState());
 
     // Admin controls
+    socket.on('set_phase', (data) => {
+        console.log(`[GM] Setting phase to: ${data.phase}`);
+        const result = gameManager.setPhase(data.phase);
+        if (!result.success) {
+            socket.emit('phase_error', { message: result.message });
+        }
+        gmNamespace.emit('game_state', gameManager.getGameState());
+    });
+
+    socket.on('set_team_size', (data) => {
+        console.log(`[GM] Setting team size to: ${data.size}`);
+        gameManager.setTeamSize(data.size);
+        gmNamespace.emit('game_state', gameManager.getGameState());
+    });
+
     socket.on('start_game', () => {
-        gameManager.setPhase('chain');
+        const result = gameManager.setPhase('chain');
+        if (!result.success) {
+            socket.emit('phase_error', { message: result.message });
+        }
+        gmNamespace.emit('game_state', gameManager.getGameState());
     });
 
     socket.on('start_heist', () => {
         gameManager.setPhase('heist');
+        gmNamespace.emit('game_state', gameManager.getGameState());
     });
 
     socket.on('reset_game', () => {
-        // Reset all state
-        gameManager.phase = 'lobby';
-        gameManager.players.clear();
-        gameManager.squads.clear();
-        gameManager.drawings = [];
-        gameManager.codeFragments.clear();
-
+        gameManager.resetGame();
         io.emit('game_reset');
-        socket.emit('game_state', gameManager.getGameState());
+        gmNamespace.emit('game_state', gameManager.getGameState());
     });
 });
 
-// Periodic state broadcast to GM
+// Periodic state broadcast to GM (every 2 seconds for auto-refresh)
 setInterval(() => {
-    io.to('gm').emit('game_state', gameManager.getGameState());
+    gmNamespace.emit('game_state', gameManager.getGameState());
 }, 1000);
 
 const PORT = process.env.PORT || 3001;

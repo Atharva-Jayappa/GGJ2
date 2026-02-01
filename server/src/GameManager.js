@@ -21,14 +21,24 @@ const PROMPTS = [
 class GameManager {
     constructor(io) {
         this.io = io;
-        this.phase = 'lobby'; // lobby, chain, heist, getaway
+        this.phase = 'start'; // start, tutorial, lobby, chain, heist, getaway, complete
         this.players = new Map(); // socketId -> player data
         this.squads = new Map(); // squadId -> Squad instance
         this.drawings = []; // All submitted drawings for GM view
         this.codeFragments = new Map(); // squadId -> array of code fragments
-        this.maxPlayers = 50;
-        this.squadSize = 4;
+        this.maxPlayers = 100;
+        this.squadSize = 4; // configurable team size
         this.gracePeriodsMs = 30000;
+    }
+
+    /**
+     * Set the team size
+     * @param {number} size
+     */
+    setTeamSize(size) {
+        if (size >= 2 && size <= 10) {
+            this.squadSize = size;
+        }
     }
 
     /**
@@ -107,7 +117,7 @@ class GameManager {
             const slice = playerList.slice(i, Math.min(i + this.squadSize, playerList.length));
 
             // Only form a squad if we have at least the minimum size
-            if (slice.length >= 4) {
+            if (slice.length >= this.squadSize) {
                 slice.forEach(player => {
                     squad.addPlayer(player);
                     player.squad = squadId;
@@ -117,11 +127,11 @@ class GameManager {
                 this.squads.set(squadId, squad);
                 squadIndex++;
             } else {
-                // Distribute remaining players to existing squads
+                // Distribute remaining players to existing squads (respect teamSize+1 max)
                 slice.forEach((player, idx) => {
                     const targetSquadId = `squad_${(idx % squadIndex) + 1}`;
                     const targetSquad = this.squads.get(targetSquadId);
-                    if (targetSquad && targetSquad.players.length < 5) {
+                    if (targetSquad && targetSquad.players.length <= this.squadSize) {
                         targetSquad.addPlayer(player);
                         player.squad = targetSquadId;
                         this.players.set(player.id, player);
@@ -185,15 +195,37 @@ class GameManager {
     }
 
     /**
+     * Validate if game can start with current player count and team size
+     * @returns {{ valid: boolean, message: string }}
+     */
+    canStartGame() {
+        const count = this.players.size;
+        if (count < this.squadSize) {
+            return { valid: false, message: `Need at least ${this.squadSize} players` };
+        }
+        if (count % this.squadSize !== 0) {
+            const needed = this.squadSize - (count % this.squadSize);
+            return { valid: false, message: `Need ${needed} more players for even teams` };
+        }
+        return { valid: true, message: 'Ready to start' };
+    }
+
+    /**
      * Transition to a new phase
      * @param {string} newPhase
+     * @returns {{ success: boolean, message?: string }}
      */
     setPhase(newPhase) {
-        this.phase = newPhase;
-
+        // Server-side validation for chain phase
         if (newPhase === 'chain') {
+            const validation = this.canStartGame();
+            if (!validation.valid) {
+                return { success: false, message: validation.message };
+            }
             this.formSquads();
         }
+        
+        this.phase = newPhase;
 
         if (newPhase === 'heist') {
             // Initialize code fragments for each squad
@@ -204,6 +236,19 @@ class GameManager {
         }
 
         this.io.emit('phase_change', { phase: newPhase });
+        return { success: true };
+    }
+
+    /**
+     * Reset the game to initial state
+     */
+    resetGame() {
+        this.phase = 'start';
+        this.players.clear();
+        this.squads.clear();
+        this.drawings = [];
+        this.codeFragments.clear();
+        this.squadSize = 4; // Reset to default team size
     }
 
     /**
@@ -237,6 +282,7 @@ class GameManager {
             playerCount: this.players.size,
             maxPlayers: this.maxPlayers,
             squadCount: this.squads.size,
+            teamSize: this.squadSize,
             drawings: this.drawings,
             squads: this.getAllSquadStatuses(),
         };
