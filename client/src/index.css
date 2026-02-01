@@ -1,6 +1,16 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap');
 
+/*
+ * PUZZLE COLOR SAFELIST
+ * These classes are used dynamically in puzzleData.ts for puzzle symbols.
+ * Listing them here ensures Tailwind includes them in the CSS bundle.
+ * 
+ * text-cyan-400 text-pink-400 text-green-400 text-yellow-400 text-red-400
+ * text-purple-400 text-blue-400 text-orange-400 text-teal-400 text-slate-300
+ * text-orange-300 text-yellow-300 text-slate-100
+ */
+
 /* Cyberpunk Theme Variables */
 :root {
   --bg-primary: #0f172a;

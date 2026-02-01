@@ -2,7 +2,7 @@
 
 export interface PuzzleCell {
     symbol: string;
-    color: string;  // tailwind class
+    color: string;  // hex color value (e.g., '#22d3ee')
 }
 
 export interface Puzzle {
@@ -16,160 +16,204 @@ export interface Puzzle {
     clues: string[];
 }
 
+// Color palette - hex values for consistent rendering
+const COLORS = {
+    cyan: '#22d3ee',
+    pink: '#f472b6',
+    green: '#4ade80',
+    yellow: '#facc15',
+    red: '#f87171',
+    purple: '#c084fc',
+    blue: '#60a5fa',
+    orange: '#fb923c',
+    teal: '#2dd4bf',
+    slate: '#cbd5e1',
+    lime: '#a3e635',
+    orangeLight: '#fdba74',
+    yellowLight: '#fde047',
+};
+
 export const PUZZLES: Puzzle[] = [
     {
         id: 'cyber_runes',
         name: 'Cyber Runes',
         grid: [
-            { symbol: '◇', color: 'text-cyan-400' },
-            { symbol: '△', color: 'text-pink-400' },
-            { symbol: '○', color: 'text-green-400' },
-            { symbol: '□', color: 'text-yellow-400' },
-            { symbol: '⬡', color: 'text-red-400' },
-            { symbol: '⬢', color: 'text-purple-400' },
-            { symbol: '◈', color: 'text-blue-400' },
-            { symbol: '✧', color: 'text-orange-400' },  // ← ANSWER (index 7)
-            { symbol: '☆', color: 'text-teal-400' },
+            { symbol: '◇', color: COLORS.cyan },
+            { symbol: '△', color: COLORS.pink },
+            { symbol: '○', color: COLORS.green },
+            { symbol: '□', color: COLORS.yellow },
+            { symbol: '⬡', color: COLORS.red },
+            { symbol: '⬢', color: COLORS.purple },
+            { symbol: '◈', color: COLORS.blue },
+            { symbol: '✧', color: COLORS.orange },  // ← ANSWER (index 7)
+            { symbol: '☆', color: COLORS.teal },
         ],
         correctIndex: 7,
         clues: [
+            // Matches: ⬡, ⬢, ◈, ✧, ☆ (row 2-3) → need more clues
             "The symbol is NOT in the first row",
-            "The symbol is NOT cyan or pink colored",
-            "The symbol is a STAR shape (has points)",
-            "The symbol is ORANGE colored",
-            "The symbol is in the THIRD row",
+            // Matches: ○, □, ⬡, ◈, ✧ (not cyan/pink) → combined with above: ⬡, ◈, ✧
+            "The symbol is NOT cyan, pink, or purple colored",
+            // Matches: ✧, ☆ (star shapes) → combined: ✧ only
+            "The symbol has POINTED tips radiating outward",
+            // Matches: ✧ (4-pointed) vs ☆ (5-pointed)
+            "The symbol has exactly FOUR points",
         ],
     },
     {
         id: 'math_symbols',
         name: 'Binary Matrix',
         grid: [
-            { symbol: '∞', color: 'text-cyan-400' },
-            { symbol: '∑', color: 'text-pink-400' },
-            { symbol: 'π', color: 'text-green-400' },      // ← ANSWER (index 2)
-            { symbol: '√', color: 'text-yellow-400' },
-            { symbol: 'Δ', color: 'text-red-400' },
-            { symbol: 'Ω', color: 'text-purple-400' },
-            { symbol: '∂', color: 'text-blue-400' },
-            { symbol: '∫', color: 'text-orange-400' },
-            { symbol: 'λ', color: 'text-teal-400' },
+            { symbol: '∞', color: COLORS.cyan },
+            { symbol: '∑', color: COLORS.pink },
+            { symbol: 'π', color: COLORS.green },      // ← ANSWER (index 2)
+            { symbol: '√', color: COLORS.yellow },
+            { symbol: 'Δ', color: COLORS.red },
+            { symbol: 'Ω', color: COLORS.purple },
+            { symbol: '∂', color: COLORS.blue },
+            { symbol: '∫', color: COLORS.orange },
+            { symbol: 'λ', color: COLORS.teal },
         ],
         correctIndex: 2,
         clues: [
-            "The symbol is in the FIRST row",
-            "The symbol is GREEN colored",
-            "The symbol represents a famous CONSTANT",
-            "The symbol is NOT infinity or summation",
+            // Matches: ∞, ∑, π (row 1) + √, Δ, Ω (row 2) - need narrowing
+            "The symbol is in the TOP HALF of the grid",
+            // Matches: π, √, ∂, λ (lowercase-ish curved symbols)
+            "The symbol uses LOWERCASE or small lettering style",
+            // Matches: π, Ω, λ (Greek letters representing constants)
+            "The symbol is a GREEK letter",
+            // Matches: π (green), vs Ω (purple), λ (teal)
+            "The symbol is a COOL color (green, blue, cyan, or teal)",
         ],
     },
     {
         id: 'card_suits',
         name: 'Card Cipher',
         grid: [
-            { symbol: '♠', color: 'text-slate-300' },
-            { symbol: '♥', color: 'text-red-400' },
-            { symbol: '♦', color: 'text-red-400' },
-            { symbol: '♣', color: 'text-slate-300' },
-            { symbol: '♤', color: 'text-cyan-400' },      // ← ANSWER (index 4)
-            { symbol: '♡', color: 'text-pink-400' },
-            { symbol: '♢', color: 'text-yellow-400' },
-            { symbol: '♧', color: 'text-green-400' },
-            { symbol: '⚜', color: 'text-purple-400' },
+            { symbol: '♠', color: COLORS.slate },
+            { symbol: '♥', color: COLORS.red },
+            { symbol: '♦', color: COLORS.red },
+            { symbol: '♣', color: COLORS.lime },
+            { symbol: '♤', color: COLORS.cyan },      // ← ANSWER (index 4)
+            { symbol: '♡', color: COLORS.pink },
+            { symbol: '♢', color: COLORS.yellow },
+            { symbol: '♧', color: COLORS.green },
+            { symbol: '⚜', color: COLORS.purple },
         ],
         correctIndex: 4,
         clues: [
-            "The symbol is a SPADE shape",
-            "The symbol is CYAN/BLUE colored",
-            "The symbol is an OUTLINE, not filled",
-            "The symbol is in the MIDDLE row",
+            // Matches: ♠, ♣, ♤, ♧ (black suits) + ⚜
+            "The symbol is NOT a heart or diamond shape",
+            // Matches: ♤, ♡, ♢, ♧ (outlines only)
+            "The symbol is HOLLOW/OUTLINE style, not filled solid",
+            // Matches: ♤ (cyan), ♢ (yellow), ⚜ (purple) - not warm colors
+            "The symbol is NOT red, pink, or green colored",
+            // Matches: ♠, ♤ (spade shapes)
+            "The symbol has a POINTED top like an upside-down heart",
         ],
     },
     {
         id: 'arrows',
         name: 'Vector Grid',
         grid: [
-            { symbol: '↑', color: 'text-red-400' },
-            { symbol: '↗', color: 'text-orange-400' },
-            { symbol: '→', color: 'text-yellow-400' },
-            { symbol: '↘', color: 'text-green-400' },
-            { symbol: '↓', color: 'text-cyan-400' },
-            { symbol: '↙', color: 'text-blue-400' },      // ← ANSWER (index 5)
-            { symbol: '←', color: 'text-purple-400' },
-            { symbol: '↖', color: 'text-pink-400' },
-            { symbol: '⟳', color: 'text-teal-400' },
+            { symbol: '↑', color: COLORS.red },
+            { symbol: '↗', color: COLORS.orange },
+            { symbol: '→', color: COLORS.yellow },
+            { symbol: '↘', color: COLORS.green },
+            { symbol: '↓', color: COLORS.cyan },
+            { symbol: '↙', color: COLORS.blue },      // ← ANSWER (index 5)
+            { symbol: '←', color: COLORS.purple },
+            { symbol: '↖', color: COLORS.pink },
+            { symbol: '⟳', color: COLORS.teal },
         ],
         correctIndex: 5,
         clues: [
-            "The symbol points DOWNWARD (has down component)",
-            "The symbol is BLUE colored",
-            "The symbol is DIAGONAL",
-            "The symbol is in the THIRD row",
+            // Matches: ↘, ↓, ↙ (has downward component)
+            "The arrow points at least partially DOWNWARD",
+            // Matches: ↗, ↘, ↙, ↖ (diagonals)
+            "The arrow is DIAGONAL, not straight",
+            // Matches: ↙ (blue), ↓ (cyan), ← (purple) - cool colors
+            "The symbol is a COOL color (blue, cyan, purple, or teal)",
+            // Matches: ↙, ←, ↖ (has leftward component)
+            "The arrow points at least partially LEFT",
         ],
     },
     {
         id: 'planets',
         name: 'Cosmic Code',
         grid: [
-            { symbol: '☉', color: 'text-yellow-400' },
-            { symbol: '☽', color: 'text-slate-300' },
-            { symbol: '☿', color: 'text-orange-400' },
-            { symbol: '♀', color: 'text-pink-400' },
-            { symbol: '♁', color: 'text-blue-400' },
-            { symbol: '♂', color: 'text-red-400' },       // ← ANSWER (index 5)
-            { symbol: '♃', color: 'text-orange-300' },
-            { symbol: '♄', color: 'text-yellow-300' },
-            { symbol: '♅', color: 'text-cyan-400' },
+            { symbol: '☉', color: COLORS.yellow },
+            { symbol: '☽', color: COLORS.slate },
+            { symbol: '☿', color: COLORS.orange },
+            { symbol: '♀', color: COLORS.pink },
+            { symbol: '♁', color: COLORS.blue },
+            { symbol: '♂', color: COLORS.red },       // ← ANSWER (index 5)
+            { symbol: '♃', color: COLORS.orangeLight },
+            { symbol: '♄', color: COLORS.yellowLight },
+            { symbol: '♅', color: COLORS.cyan },
         ],
         correctIndex: 5,
         clues: [
-            "The symbol is RED colored",
-            "The symbol is in the SECOND row",
-            "The symbol represents a PLANET",
-            "The symbol has an ARROW pointing out",
+            // Matches: ♀, ♁, ♂, ♃, ♄, ♅ (rows 2-3)
+            "The symbol is NOT in the first row",
+            // Matches: ☿, ♀, ♂ (has circle with something attached)
+            "The symbol has a CIRCLE as its base shape",
+            // Matches: ♂ (red), ♈ if existed - warm single colors
+            "The symbol is a WARM color (red, orange, yellow, or pink)",
+            // Matches: ♂ (arrow pointing out), vs ♀ (cross below)
+            "The symbol has an ARROW or spike extending from it",
         ],
     },
     {
         id: 'zodiac',
         name: 'Star Chart',
         grid: [
-            { symbol: '♈', color: 'text-red-400' },
-            { symbol: '♉', color: 'text-green-400' },
-            { symbol: '♊', color: 'text-yellow-400' },
-            { symbol: '♋', color: 'text-slate-300' },
-            { symbol: '♌', color: 'text-orange-400' },
-            { symbol: '♍', color: 'text-blue-400' },
-            { symbol: '♎', color: 'text-pink-400' },      // ← ANSWER (index 6)
-            { symbol: '♏', color: 'text-purple-400' },
-            { symbol: '♐', color: 'text-cyan-400' },
+            { symbol: '♈', color: COLORS.red },
+            { symbol: '♉', color: COLORS.green },
+            { symbol: '♊', color: COLORS.yellow },
+            { symbol: '♋', color: COLORS.slate },
+            { symbol: '♌', color: COLORS.orange },
+            { symbol: '♍', color: COLORS.blue },
+            { symbol: '♎', color: COLORS.pink },      // ← ANSWER (index 6)
+            { symbol: '♏', color: COLORS.purple },
+            { symbol: '♐', color: COLORS.cyan },
         ],
         correctIndex: 6,
         clues: [
-            "The symbol is in the THIRD row",
-            "The symbol is PINK colored",
-            "The symbol looks like SCALES or balance",
-            "The symbol is NOT purple or cyan",
+            // Matches: ♎, ♏, ♐ (row 3)
+            "The symbol is in the BOTTOM row",
+            // Matches: ♎ (pink), ♈ (red), ♌ (orange) - warm-ish
+            "The symbol is NOT blue, purple, or cyan colored",
+            // Matches: ♎ (Libra - balanced/symmetric), ♊ (Gemini)
+            "The symbol appears SYMMETRIC or balanced",
+            // Matches: ♎ (horizontal line on top)
+            "The symbol has a HORIZONTAL line as part of it",
         ],
     },
     {
         id: 'weather',
         name: 'Storm Signal',
         grid: [
-            { symbol: '☀', color: 'text-yellow-400' },
-            { symbol: '☁', color: 'text-slate-300' },
-            { symbol: '☂', color: 'text-blue-400' },
-            { symbol: '☃', color: 'text-slate-100' },
-            { symbol: '☄', color: 'text-orange-400' },    // ← ANSWER (index 4)
-            { symbol: '⚡', color: 'text-yellow-300' },
-            { symbol: '❄', color: 'text-cyan-400' },
-            { symbol: '☾', color: 'text-purple-400' },
-            { symbol: '✦', color: 'text-pink-400' },
+            { symbol: '☀', color: COLORS.yellow },
+            { symbol: '☁', color: COLORS.slate },
+            { symbol: '☂', color: COLORS.blue },
+            { symbol: '☃', color: COLORS.lime },
+            { symbol: '☄', color: COLORS.orange },    // ← ANSWER (index 4)
+            { symbol: '⚡', color: COLORS.yellowLight },
+            { symbol: '❄', color: COLORS.cyan },
+            { symbol: '☾', color: COLORS.purple },
+            { symbol: '✦', color: COLORS.pink },
         ],
         correctIndex: 4,
         clues: [
+            // Matches: ☃, ☄, ⚡ (row 2)
             "The symbol is in the MIDDLE row",
-            "The symbol is ORANGE colored",
-            "The symbol has a TRAIL or tail",
-            "The symbol is NOT a snowflake",
+            // Matches: ☀, ☄, ⚡ (yellow/orange warm colors)
+            "The symbol is a WARM color (yellow, orange, or red)",
+            // Matches: ☄ (comet), ⚡ (lightning) - dynamic/moving
+            "The symbol represents something that MOVES or falls",
+            // Matches: ☀ (circle), ☄ (circle with tail) - round base
+            "The symbol has a ROUND or circular part",
         ],
     },
 ];
@@ -188,3 +232,4 @@ export function getPuzzleById(id: string): Puzzle | undefined {
 export function getClueForPlayer(puzzle: Puzzle, playerIndex: number): string {
     return puzzle.clues[playerIndex % puzzle.clues.length];
 }
+

@@ -243,13 +243,13 @@ export function SignalJammer() {
                 ${isCorrect
                                     ? 'bg-green-500/30 border-green-400 glow-cyan'
                                     : isWrong
-                                        ? 'bg-red-900/20 border-red-500/30 text-red-500/30 cursor-not-allowed'
+                                        ? 'bg-red-900/20 border-red-500/30 cursor-not-allowed'
                                         : isSelected
                                             ? 'bg-cyan-500/30 border-cyan-400 glow-cyan'
                                             : 'bg-slate-800/50 border-slate-600 hover:border-cyan-400/50'
                                 }
-                ${cell.color}
               `}
+                            style={{ color: isWrong ? 'rgba(239, 68, 68, 0.3)' : cell.color }}
                         >
                             <motion.span
                                 animate={isSelected ? {
