@@ -116,13 +116,13 @@ io.on('connection', (socket) => {
 
         if (result.success) {
             const squad = gameManager.squads.get(result.squadId);
-            
+
             // Notify ALL squad members about scan progress (emit to each player directly)
             if (squad) {
                 const confirmedCount = squad.getCompletedScans();
                 const totalCount = squad.players.length;
                 const allConfirmed = confirmedCount === totalCount;
-                
+
                 squad.players.forEach(p => {
                     io.to(p.id).emit('scan_complete', {
                         scannerId: socket.id,
@@ -151,6 +151,58 @@ io.on('connection', (socket) => {
         }
 
         callback(result);
+    });
+
+    // Verify QR code scan - validates scanned code matches target
+    socket.on('verify_scan', (data, callback) => {
+        const result = gameManager.verifyScan(socket.id, data.scannedCode);
+
+        if (result.success) {
+            // Also record the scan completion 
+            const target = gameManager.getTargetInfo(socket.id);
+            if (target) {
+                const scanResult = gameManager.handleScan(socket.id, target.id);
+
+                if (scanResult.success) {
+                    const squad = gameManager.squads.get(scanResult.squadId);
+
+                    if (squad) {
+                        const confirmedCount = squad.getCompletedScans();
+                        const totalCount = squad.players.length;
+                        const allConfirmed = confirmedCount === totalCount;
+
+                        squad.players.forEach(p => {
+                            io.to(p.id).emit('scan_complete', {
+                                scannerId: socket.id,
+                                confirmedCount,
+                                totalCount,
+                                allConfirmed
+                            });
+                        });
+
+                        if (scanResult.loopComplete) {
+                            squad.players.forEach(p => {
+                                io.to(p.id).emit('squad_activated');
+                            });
+                            io.to('gm').emit('squad_loop_complete', { squadId: scanResult.squadId });
+                        }
+                    }
+
+                    io.to('gm').emit('scan_recorded', {
+                        squadId: scanResult.squadId,
+                        scannerId: socket.id,
+                    });
+                }
+            }
+        }
+
+        callback(result);
+    });
+
+    // Get player's own scan code (for displaying their QR)
+    socket.on('get_my_scan_code', (callback) => {
+        const scanCode = gameManager.getPlayerScanCode(socket.id);
+        callback({ scanCode });
     });
 
     // Minigame state updates
@@ -184,17 +236,14 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // Generate unique clue for this player
+        // Get unique clue for this player from pre-generated clues
         const playerIndex = squad.players.findIndex(p => p.id === socket.id);
-        const clues = [
-            'It is NOT in the first row',
-            'It is NOT in the first column',
-            'It is NOT red',
-            'It is in the center area',
-            'It has a sharp angle',
-        ];
+        const clue = squad.clues && squad.clues[playerIndex]
+            ? squad.clues[playerIndex]
+            : 'Communicate with your squad to find the symbol';
 
-        callback({ clue: clues[playerIndex % clues.length] });
+        console.log(`[CLUE] Player ${socket.id} (index ${playerIndex}) got clue: ${clue}`);
+        callback({ clue });
     });
 
     // Getaway code verification
@@ -234,20 +283,20 @@ io.on('connection', (socket) => {
 
             // Emit to each squad player directly with their result
             squad.players.forEach(p => {
-                io.to(p.id).emit('heist_complete', { 
-                    position, 
-                    totalSquads, 
+                io.to(p.id).emit('heist_complete', {
+                    position,
+                    totalSquads,
                     isWinner,
                     tasksCompleted: squad.tasksCompleted
                 });
             });
-            
-            io.to('gm').emit('squad_completed', { 
-                squadId: player.squad, 
-                position, 
-                totalSquads 
+
+            io.to('gm').emit('squad_completed', {
+                squadId: player.squad,
+                position,
+                totalSquads
             });
-            
+
             // Broadcast updated leaderboard
             io.to('gm').emit('leaderboard_update', gameManager.getLeaderboard());
 
@@ -275,7 +324,7 @@ io.on('connection', (socket) => {
         const allConfirmed = squad.players.every(p => p.scanComplete);
         if (!allConfirmed) {
             console.log(`[SQUAD_ADVANCE] Squad ${player.squad} not all confirmed yet`);
-            socket.emit('squad_advance_denied', { 
+            socket.emit('squad_advance_denied', {
                 message: 'Waiting for all squad members to confirm their targets',
                 confirmedCount: squad.getCompletedScans(),
                 totalCount: squad.players.length
@@ -284,15 +333,15 @@ io.on('connection', (socket) => {
         }
 
         console.log(`[SQUAD_ADVANCE] Squad ${player.squad} advancing to: ${data.view}`);
-        
+
         // Track the view change
         squad.setView(data.view);
-        
+
         // Only broadcast to THIS squad's players
         squad.players.forEach(p => {
             io.to(p.id).emit('view_change', { view: data.view });
         });
-        
+
         // Broadcast updated leaderboard to GM
         io.to('gm').emit('leaderboard_update', gameManager.getLeaderboard());
     });
@@ -313,10 +362,10 @@ io.on('connection', (socket) => {
         }
 
         const squadId = player.squad;
-        
+
         // Get code from GameManager (generated during heist phase with team-size scaling)
         let codeFragments = gameManager.codeFragments.get(squadId);
-        
+
         // If code doesn't exist yet, generate it now (handles squad_advance skipping global phase)
         if (!codeFragments || codeFragments.length === 0) {
             const teamSize = squad.players.length;
@@ -436,7 +485,7 @@ io.on('connection', (socket) => {
                 console.log(`[TUMBLER] Squad ${squadId} VAULT CRACKED! All players held for 3s!`);
                 global.squadTumblerSyncStart.delete(squadId);
                 global.squadTumblerStates.delete(squadId);
-                
+
                 // Advance only this squad
                 squad.players.forEach(p => {
                     io.to(p.id).emit('view_change', { view: 'getaway' });
@@ -519,12 +568,12 @@ gmNamespace.on('connection', (socket) => {
 
     socket.on('reset_game', () => {
         gameManager.resetGame();
-        
+
         // Clear all per-squad global state
         if (global.squadTumblerStates) global.squadTumblerStates.clear();
         if (global.squadTumblerSyncStart) global.squadTumblerSyncStart.clear();
         if (global.squadFragments) global.squadFragments.clear();
-        
+
         io.emit('game_reset');
         gmNamespace.emit('game_state', gameManager.getGameState());
     });

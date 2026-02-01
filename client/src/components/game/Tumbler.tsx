@@ -38,7 +38,10 @@ export function Tumbler({
         totalPlayers: 0
     });
     const [completed, setCompleted] = useState(false);
+    const completedRef = useRef(false);
     const [permissionGranted, setPermissionGranted] = useState(false);
+    // Check if this device needs permission (iOS 13+)
+    const [needsPermission, setNeedsPermission] = useState(false);
 
     // Check if angle is in sweet spot
     const checkSweetSpot = useCallback((angle: number) => {
@@ -91,6 +94,17 @@ export function Tumbler({
         setIsAtSweetSpot(atSweetSpot);
     }, [checkSweetSpot, sweetSpotAngle, completed]);
 
+    // Check if we need to request permission (iOS 13+)
+    useEffect(() => {
+        const requiresPermission = typeof (DeviceOrientationEvent as any).requestPermission === 'function';
+        setNeedsPermission(requiresPermission);
+
+        // On non-iOS devices, permission is automatic
+        if (!requiresPermission) {
+            setPermissionGranted(true);
+        }
+    }, []);
+
     // Request permission for iOS
     const requestPermission = async () => {
         if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
@@ -113,9 +127,9 @@ export function Tumbler({
     useEffect(() => {
         window.addEventListener('deviceorientation', handleOrientation);
 
-        // Send state to server periodically
+        // Send state to server periodically (use ref to avoid stale closure)
         const sendInterval = setInterval(() => {
-            if (socket && !completed) {
+            if (socket && !completedRef.current) {
                 socket.emit('tumbler_state', {
                     atSweetSpot: isAtSweetSpotRef.current
                 });
@@ -138,6 +152,7 @@ export function Tumbler({
         const handleComplete = (data: { view: string }) => {
             if (data.view === 'getaway') {
                 setCompleted(true);
+                completedRef.current = true; // Update ref for interval
                 triggerSuccess();
                 if (navigator.vibrate) {
                     navigator.vibrate([50, 50, 100, 50, 150]);
@@ -213,8 +228,8 @@ export function Tumbler({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className={`mb-4 px-6 py-3 rounded-lg border-2 ${synced
-                        ? 'bg-green-500/20 border-green-400'
-                        : 'bg-slate-800/50 border-slate-600'
+                    ? 'bg-green-500/20 border-green-400'
+                    : 'bg-slate-800/50 border-slate-600'
                     }`}
             >
                 <div className="text-center">
@@ -241,8 +256,8 @@ export function Tumbler({
                 </div>
             </motion.div>
 
-            {/* Permission button */}
-            {!permissionGranted && (
+            {/* Permission button - only show on iOS devices that require it */}
+            {needsPermission && !permissionGranted && (
                 <motion.button
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}

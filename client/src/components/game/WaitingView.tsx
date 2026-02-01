@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../../store/useGameStore';
 import { Button } from '../ui/Button';
+import QRCode from 'react-qr-code';
 
 export function WaitingView() {
     const phase = useGameStore((s) => s.phase);
@@ -11,12 +12,37 @@ export function WaitingView() {
     const squadAdvance = useGameStore((s) => s.squadAdvance);
     const getSquadStatus = useGameStore((s) => s.getSquadStatus);
     const showError = useGameStore((s) => s.showError);
+    const myScanCode = useGameStore((s) => s.myScanCode);
+    const getMyScanCode = useGameStore((s) => s.getMyScanCode);
+
+    const [showMyQR, setShowMyQR] = useState(false);
 
     useEffect(() => {
         if (phase === 'chain') {
             getSquadStatus();
+            getMyScanCode(); // Fetch scan code for QR display
         }
-    }, [phase, getSquadStatus]);
+    }, [phase, getSquadStatus, getMyScanCode]);
+
+    // Handle back button for QR modal
+    useEffect(() => {
+        const handlePopState = () => {
+            if (showMyQR) {
+                // Back button pressed while modal is open - close it
+                setShowMyQR(false);
+                // Re-push state to prevent actual navigation
+                window.history.pushState({ qrModal: false }, '', window.location.href);
+            }
+        };
+
+        // Push state when opening modal
+        if (showMyQR) {
+            window.history.pushState({ qrModal: true }, '', window.location.href);
+        }
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [showMyQR]);
 
     const handleStartHeist = () => {
         squadAdvance('signal_jammer');
@@ -106,7 +132,7 @@ export function WaitingView() {
                                 className="cyber-card p-4 mb-6 relative overflow-hidden"
                             >
                                 <div className="scanlines absolute inset-0 pointer-events-none" />
-                                
+
                                 <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-green-400" />
                                 <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-green-400" />
                                 <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-green-400" />
@@ -149,7 +175,7 @@ export function WaitingView() {
                                 </span>
                                 <span className="text-slate-500 text-sm">teammates ready</span>
                             </div>
-                            
+
                             {/* Progress bar */}
                             <div className="w-full bg-slate-800 rounded-full h-2 mb-4">
                                 <motion.div
@@ -176,6 +202,58 @@ export function WaitingView() {
                         >
                             {allConfirmed ? '⚡ SQUAD READY - START HEIST' : `⏳ WAITING FOR SQUAD (${confirmedCount}/${totalCount})`}
                         </Button>
+
+                        {/* Show My Code button - for hunters looking for YOU */}
+                        <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setShowMyQR(true)}
+                            className="w-full mt-4 py-3 bg-pink-500/20 border border-pink-400 text-pink-400 
+                                     font-bold tracking-wider"
+                        >
+                            📱 Show My Code (For My Hunter)
+                        </motion.button>
+
+                        {/* QR Code Modal */}
+                        <AnimatePresence>
+                            {showMyQR && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="fixed inset-0 bg-black/90 flex flex-col items-center justify-center z-50 p-8"
+                                    onClick={() => setShowMyQR(false)}
+                                >
+                                    <motion.div
+                                        initial={{ scale: 0.8 }}
+                                        animate={{ scale: 1 }}
+                                        exit={{ scale: 0.8 }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <p className="text-pink-400 text-lg mb-4 tracking-wider text-center">
+                                            SHOW THIS TO YOUR HUNTER
+                                        </p>
+
+                                        <div className="p-6 bg-white rounded-lg glow-pink">
+                                            {myScanCode ? (
+                                                <QRCode value={myScanCode} size={220} />
+                                            ) : (
+                                                <div className="w-[220px] h-[220px] flex items-center justify-center text-slate-500">
+                                                    Loading...
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <p className="mt-4 text-cyan-400 font-mono text-lg tracking-widest text-center">
+                                            {myScanCode || '...'}
+                                        </p>
+
+                                        <p className="mt-4 text-slate-500 text-xs text-center">
+                                            Tap anywhere to close
+                                        </p>
+                                    </motion.div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </>
                 )}
 

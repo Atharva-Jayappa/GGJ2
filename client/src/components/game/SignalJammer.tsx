@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../../store/useGameStore';
 
@@ -21,16 +21,9 @@ const RUNE_COLORS = [
     'text-teal-400',
 ];
 
-// DEV: Hardcoded clues for demo - in production these come from server
-const DEV_CLUES = [
-    "The symbol is NOT in the first row",
-    "The symbol is NOT cyan colored",
-    "The symbol has more than 4 sides",
-    "The symbol is in the bottom half",
-];
-
 export function SignalJammer() {
-    const setView = useGameStore((s) => s.setView);
+    const socket = useGameStore((s) => s.socket);
+    const squadAdvance = useGameStore((s) => s.squadAdvance);
     const triggerSuccess = useGameStore((s) => s.triggerSuccess);
     const triggerError = useGameStore((s) => s.triggerError);
     const showSuccess = useGameStore((s) => s.showSuccess);
@@ -40,52 +33,74 @@ export function SignalJammer() {
     const [wrongGuesses, setWrongGuesses] = useState<Set<number>>(new Set());
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [solved, setSolved] = useState(false);
+    const [clue, setClue] = useState<string | null>(null);
 
-    // DEV: Pick a random clue on mount
-    const clue = useMemo(() => {
-        return DEV_CLUES[Math.floor(Math.random() * DEV_CLUES.length)];
-    }, []);
+    // Fetch unique clue from server on mount
+    useEffect(() => {
+        if (socket && !clue) {
+            socket.emit('get_clue', (response: { clue: string | null }) => {
+                console.log('[SIGNAL JAMMER] Received clue:', response.clue);
+                setClue(response.clue);
+            });
+        }
+    }, [socket, clue]);
 
-    // DEV: The correct answer is index 7 (✧ - the star)
-    const CORRECT_SYMBOL = 7;
+    // Listen for view changes (when another player solves it or squad advances)
+    useEffect(() => {
+        const handleViewChange = (data: { view: string }) => {
+            if (data.view === 'tumbler') {
+                setSolved(true);
+                triggerSuccess();
+            }
+        };
+
+        if (socket) {
+            socket.on('view_change', handleViewChange);
+        }
+
+        return () => {
+            if (socket) {
+                socket.off('view_change', handleViewChange);
+            }
+        };
+    }, [socket, triggerSuccess]);
 
     const handleSymbolClick = useCallback(async (index: number) => {
-        if (wrongGuesses.has(index) || isSubmitting || solved) return;
+        if (wrongGuesses.has(index) || isSubmitting || solved || !socket) return;
 
         setSelectedIndex(index);
         setIsSubmitting(true);
 
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Send guess to server for validation
+        socket.emit('signal_jammer_guess', { symbolIndex: index }, (result: { success: boolean }) => {
+            if (result.success) {
+                triggerSuccess();
+                setSolved(true);
 
-        // DEV: Check against hardcoded correct answer
-        if (index === CORRECT_SYMBOL) {
-            triggerSuccess();
-            setSolved(true);
+                // Haptic feedback for success
+                if (navigator.vibrate) {
+                    navigator.vibrate([50, 50, 100, 50, 150]);
+                }
 
-            // Haptic feedback for success
-            if (navigator.vibrate) {
-                navigator.vibrate([50, 50, 100, 50, 150]);
+                // Advance the entire squad to next minigame
+                setTimeout(() => {
+                    squadAdvance('tumbler');
+                }, 1500);
+            } else {
+                // Wrong guess
+                setWrongGuesses((prev) => new Set([...prev, index]));
+                triggerError();
+
+                // Haptic feedback for error
+                if (navigator.vibrate) {
+                    navigator.vibrate([100, 50, 100]);
+                }
             }
 
-            // Advance to next minigame after delay
-            setTimeout(() => {
-                setView('tumbler');
-            }, 1500);
-        } else {
-            // Wrong guess
-            setWrongGuesses((prev) => new Set([...prev, index]));
-            triggerError();
-
-            // Haptic feedback for error
-            if (navigator.vibrate) {
-                navigator.vibrate([100, 50, 100]);
-            }
-        }
-
-        setIsSubmitting(false);
-        setSelectedIndex(null);
-    }, [wrongGuesses, isSubmitting, solved, triggerSuccess, triggerError, setView]);
+            setIsSubmitting(false);
+            setSelectedIndex(null);
+        });
+    }, [wrongGuesses, isSubmitting, solved, socket, triggerSuccess, triggerError, squadAdvance]);
 
     const maxTries = 8;
     const triesLeft = maxTries - wrongGuesses.size;
@@ -156,12 +171,15 @@ export function SignalJammer() {
                 <p className="text-pink-400 text-xs uppercase tracking-wider mb-1">
                     YOUR INTEL:
                 </p>
-                <p className="text-white font-mono text-sm">
-                    "{clue}"
-                </p>
-                <p className="text-slate-500 text-xs mt-2 italic">
-                    💡 Hint: The correct symbol is ✧ (index 7)
-                </p>
+                {clue ? (
+                    <p className="text-white font-mono text-sm">
+                        "{clue}"
+                    </p>
+                ) : (
+                    <p className="text-slate-500 text-sm animate-pulse">
+                        Receiving transmission...
+                    </p>
+                )}
             </motion.div>
 
             {/* 3x3 Grid of Runes */}
@@ -174,7 +192,7 @@ export function SignalJammer() {
                 {RUNES.map((rune, index) => {
                     const isWrong = wrongGuesses.has(index);
                     const isSelected = selectedIndex === index;
-                    const isCorrect = solved && index === CORRECT_SYMBOL;
+                    const isCorrect = solved && isSelected;
 
                     return (
                         <motion.button

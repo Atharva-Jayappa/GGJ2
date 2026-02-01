@@ -113,21 +113,25 @@ class GameManager {
 
         // Form squads of exactly squadSize players
         const numSquads = Math.floor(playerList.length / this.squadSize);
-        
+
         for (let squadIdx = 0; squadIdx < numSquads; squadIdx++) {
             const squadId = `squad_${squadIdx + 1}`;
             const squad = new Squad(squadId, this.squadSize);
-            
+
             const startIdx = squadIdx * this.squadSize;
             const endIdx = startIdx + this.squadSize;
-            
+
             for (let i = startIdx; i < endIdx; i++) {
                 const player = playerList[i];
+
+                // Generate unique scan code for QR verification
+                player.scanCode = this.generateScanCode();
+
                 squad.addPlayer(player);
                 player.squad = squadId;
                 this.players.set(player.id, player);
             }
-            
+
             this.squads.set(squadId, squad);
         }
 
@@ -136,6 +140,19 @@ class GameManager {
         for (const [squadId, squad] of this.squads) {
             console.log(`  ${squadId}: ${squad.players.length} players`);
         }
+    }
+
+    /**
+     * Generate a unique scan code for QR verification
+     * @returns {string}
+     */
+    generateScanCode() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid confusing chars like 0/O, 1/I
+        let code = 'UNMASK-';
+        for (let i = 0; i < 8; i++) {
+            code += chars[Math.floor(Math.random() * chars.length)];
+        }
+        return code;
     }
 
     /**
@@ -158,7 +175,50 @@ class GameManager {
             drawing: target.drawing,
             tell: target.tell,
             prompt: target.prompt,
+            scanCode: target.scanCode, // Include scan code for QR verification
         };
+    }
+
+    /**
+     * Get the player's own scan code (for displaying their QR)
+     * @param {string} socketId
+     * @returns {string|null}
+     */
+    getPlayerScanCode(socketId) {
+        const player = this.players.get(socketId);
+        return player?.scanCode || null;
+    }
+
+    /**
+     * Verify a QR scan - check if scanned code matches player's target
+     * @param {string} scannerId - The player doing the scanning
+     * @param {string} scannedCode - The code that was scanned
+     * @returns {Object} - { success, message }
+     */
+    verifyScan(scannerId, scannedCode) {
+        const scanner = this.players.get(scannerId);
+        if (!scanner || !scanner.squad) {
+            return { success: false, message: 'Invalid player' };
+        }
+
+        const squad = this.squads.get(scanner.squad);
+        if (!squad) {
+            return { success: false, message: 'Squad not found' };
+        }
+
+        const target = squad.getTarget(scannerId);
+        if (!target) {
+            return { success: false, message: 'Target not found' };
+        }
+
+        // Verify the scanned code matches the target's code
+        if (scannedCode === target.scanCode) {
+            console.log(`[SCAN VERIFIED] Player ${scannerId} correctly scanned target ${target.id}`);
+            return { success: true, message: 'Target verified!' };
+        } else {
+            console.log(`[SCAN FAILED] Player ${scannerId} scanned wrong code. Expected: ${target.scanCode}, Got: ${scannedCode}`);
+            return { success: false, message: 'Wrong target! Keep looking.' };
+        }
     }
 
     /**
@@ -222,7 +282,7 @@ class GameManager {
             }
             this.formSquads();
         }
-        
+
         this.phase = newPhase;
 
         if (newPhase === 'heist') {
@@ -233,8 +293,15 @@ class GameManager {
                 this.codeFragments.set(squadId, this.generateCodeFragments(teamSize));
                 squad.setMinigame('signal_jammer');
                 squad.setView('signal_jammer');
+
+                // Generate random correct symbol for Signal Jammer (0-8 for 9 symbols)
+                squad.correctSymbol = Math.floor(Math.random() * 9);
+                console.log(`[HEIST] Squad ${squadId} correct symbol: ${squad.correctSymbol}`);
+
+                // Generate unique clues for each player based on the correct symbol
+                squad.clues = this.generateSignalJammerClues(squad.correctSymbol, teamSize);
             });
-            
+
             // Broadcast initial leaderboard
             this.io.to('gm').emit('leaderboard_update', this.getLeaderboard());
         }
@@ -278,7 +345,7 @@ class GameManager {
         const squadNames = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT', 'GOLF', 'HOTEL', 'INDIA', 'JULIET'];
         const leaderboard = [];
         let index = 0;
-        
+
         this.squads.forEach((squad, squadId) => {
             // Calculate progress percentage based on view
             let progressPercent = 0;
@@ -293,7 +360,7 @@ class GameManager {
                 case 'complete': progressPercent = 100; break;
                 default: progressPercent = 0;
             }
-            
+
             leaderboard.push({
                 id: squadId,
                 name: squadNames[index] || `SQUAD ${index + 1}`,
@@ -307,7 +374,7 @@ class GameManager {
             });
             index++;
         });
-        
+
         // Sort: completed squads by position, then incomplete by progress
         leaderboard.sort((a, b) => {
             if (a.isComplete && b.isComplete) {
@@ -317,7 +384,7 @@ class GameManager {
             if (b.isComplete) return 1;
             return b.progressPercent - a.progressPercent;
         });
-        
+
         return leaderboard;
     }
 
@@ -337,6 +404,58 @@ class GameManager {
             fragments.push(keypadChars[Math.floor(Math.random() * keypadChars.length)]);
         }
         return fragments;
+    }
+
+    /**
+     * Generate unique clues for Signal Jammer minigame
+     * Clues are based on the correct symbol's position in a 3x3 grid
+     * @param {number} correctSymbol - Index 0-8 of the correct symbol
+     * @param {number} teamSize - Number of players to generate clues for
+     * @returns {Array} Array of clue strings
+     */
+    generateSignalJammerClues(correctSymbol, teamSize) {
+        // 3x3 grid positions: 0-2 top row, 3-5 middle row, 6-8 bottom row
+        const row = Math.floor(correctSymbol / 3); // 0=top, 1=middle, 2=bottom
+        const col = correctSymbol % 3; // 0=left, 1=center, 2=right
+
+        // Colors assigned to each symbol (matching client RUNE_COLORS)
+        const colorNames = ['cyan', 'pink', 'green', 'yellow', 'red', 'purple', 'blue', 'orange', 'teal'];
+        const correctColor = colorNames[correctSymbol];
+
+        // Generate a pool of TRUE clues about the correct symbol
+        const trueClues = [];
+
+        // Row clues
+        if (row === 0) trueClues.push('The symbol is in the TOP row');
+        if (row === 1) trueClues.push('The symbol is in the MIDDLE row');
+        if (row === 2) trueClues.push('The symbol is in the BOTTOM row');
+
+        // Column clues
+        if (col === 0) trueClues.push('The symbol is in the LEFT column');
+        if (col === 1) trueClues.push('The symbol is in the CENTER column');
+        if (col === 2) trueClues.push('The symbol is in the RIGHT column');
+
+        // Color clues
+        trueClues.push(`The symbol is ${correctColor.toUpperCase()} colored`);
+
+        // "NOT" clues (things the symbol is NOT)
+        const wrongColors = colorNames.filter((_, i) => i !== correctSymbol);
+        trueClues.push(`The symbol is NOT ${wrongColors[0]} colored`);
+        trueClues.push(`The symbol is NOT ${wrongColors[1]} colored`);
+
+        if (row !== 0) trueClues.push('The symbol is NOT in the first row');
+        if (row !== 2) trueClues.push('The symbol is NOT in the last row');
+        if (col !== 0) trueClues.push('The symbol is NOT in the first column');
+        if (col !== 2) trueClues.push('The symbol is NOT in the last column');
+
+        // Shuffle and pick enough clues for the team
+        const shuffled = trueClues.sort(() => Math.random() - 0.5);
+        const clues = [];
+        for (let i = 0; i < teamSize; i++) {
+            clues.push(shuffled[i % shuffled.length]);
+        }
+
+        return clues;
     }
 
     /**

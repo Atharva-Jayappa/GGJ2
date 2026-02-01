@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion';
 // Store
 import { useGameStore } from './store/useGameStore';
 import { useSocket } from './hooks/useSocket';
+import { useHistoryManagement } from './hooks/useHistoryManagement';
 
 // Game Views
 import { LobbyView } from './components/game/LobbyView';
@@ -21,6 +22,9 @@ import { GameMasterView } from './components/gm/GameMasterView';
 function GameApp() {
   const connected = useSocket();
   const currentView = useGameStore((s) => s.currentView);
+
+  // Handle browser back button navigation
+  useHistoryManagement();
 
   if (!connected) {
     return (

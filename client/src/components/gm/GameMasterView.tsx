@@ -56,9 +56,8 @@ const SOCKET_URL = import.meta.env.PROD
     ? `${window.location.origin}/gm`
     : 'http://localhost:3001/gm';
 
-const JOIN_URL = import.meta.env.PROD
-    ? window.location.origin
-    : 'http://localhost:5173';
+// Always use current origin for QR code (works for localhost, ngrok, etc.)
+const JOIN_URL = window.location.origin;
 
 export function GameMasterView() {
     const [socket, setSocket] = useState<Socket | null>(null);
@@ -404,14 +403,13 @@ export function GameMasterView() {
                                     whileTap={{ scale: canStartChain ? 0.95 : 1 }}
                                     onClick={startGame}
                                     disabled={!canStartChain}
-                                    className={`mt-6 w-full py-4 font-bold text-xl tracking-wider ${
-                                        canStartChain
+                                    className={`mt-6 w-full py-4 font-bold text-xl tracking-wider ${canStartChain
                                             ? 'bg-green-500/20 border-2 border-green-400 text-green-400 hover:bg-green-500/30'
                                             : 'bg-slate-700/50 border-2 border-slate-600 text-slate-500 cursor-not-allowed'
-                                    }`}
+                                        }`}
                                 >
-                                    {canStartChain 
-                                        ? 'BEGIN OPERATION' 
+                                    {canStartChain
+                                        ? 'BEGIN OPERATION'
                                         : `NEED ${teamSize - (gameState.playerCount % teamSize)} MORE AGENTS`
                                     }
                                 </motion.button>
@@ -574,7 +572,7 @@ export function GameMasterView() {
 
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                 <Leaderboard entries={gameState.leaderboard} />
-                                
+
                                 <div>
                                     <SquadProgress
                                         squads={gameState.squads}
